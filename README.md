@@ -1,39 +1,66 @@
 # Academic & Dev Dashboard Personal
 
-Dashboard personal con Next.js App Router, TypeScript, Tailwind CSS, Prisma y PostgreSQL. La pantalla inicial incluye datos de ejemplo para mostrar el horario y las tarjetas de notas. El esquema Prisma y el endpoint de IA están preparados para conectarse a servicios configurados.
+Dashboard privado construido con Next.js App Router, TypeScript, Tailwind CSS, Prisma y PostgreSQL. Permite administrar cursos, cortes/notas, horarios y tareas; el acceso se restringe a una cuenta de GitHub autorizada.
 
 [![Desplegar en Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Flkjuan44-bit%2Facademic-dev-dashboard)
-
-## Publicar en Vercel
-
-Pulsa el botón **Desplegar en Vercel**, inicia sesión y autoriza la conexión con GitHub si te la solicita. Vercel detecta Next.js y configura el build automáticamente; al pulsar **Deploy** te dará una URL pública `*.vercel.app`.
-
-La pantalla inicial usa datos de ejemplo y no necesita base de datos para mostrarse. El endpoint de desglose devuelve `503 AI_NOT_CONFIGURED` hasta que agregues `AI_API_KEY` y `AI_MODEL` en las variables de entorno del proyecto en Vercel. Si más adelante conectas la base PostgreSQL, agrega allí también `DATABASE_URL`.
 
 ## Requisitos
 
 - Node.js 20.9 o superior y npm
-- Docker Desktop (para iniciar PostgreSQL con el Compose incluido), o una instancia propia de PostgreSQL
-- Una clave de una API compatible con OpenAI, solo si quieres probar el endpoint de IA
+- PostgreSQL: Docker Desktop está incluido como opción para desarrollo local
+- Una GitHub OAuth App (crea apps separadas para `localhost` y Vercel)
+- Una API compatible con OpenAI, opcional, para desglosar tareas con IA
 
 ## Ejecutar en Windows
 
-Abre PowerShell en esta carpeta (`academic-dev-dashboard`) y ejecuta:
+Abre PowerShell en esta carpeta y ejecuta:
 
 ```powershell
 npm ci
 Copy-Item .env.example .env
 docker compose up -d postgres
+```
+
+En GitHub > Settings > Developer settings > OAuth Apps, crea una app para desarrollo con:
+
+- **Homepage URL:** `http://localhost:3000`
+- **Authorization callback URL:** `http://localhost:3000/api/auth/callback/github`
+
+Copia su Client ID y Client Secret en `AUTH_GITHUB_ID` y `AUTH_GITHUB_SECRET` del archivo `.env`. Configura `GITHUB_ALLOWED_LOGIN` con el nombre de usuario GitHub autorizado. Genera un secreto de sesión con:
+
+```powershell
+node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
+```
+
+Pega el resultado en `AUTH_SECRET`. Después ejecuta:
+
+```powershell
 npm run db:generate
 npm run db:push
 npm run dev
 ```
 
-Abre `http://localhost:3000`. La página del dashboard funciona con datos de demostración; PostgreSQL queda listo para el esquema Prisma. Si ya tienes PostgreSQL en otra ubicación, omite Docker y actualiza `DATABASE_URL` en `.env`.
+Abre `http://localhost:3000` e inicia sesión con la cuenta de GitHub permitida. Si usas otra base PostgreSQL en vez de Docker, configura `DATABASE_URL` y `DIRECT_URL` en `.env`.
 
-El endpoint `POST /api/ai/breakdown` recibe `{ "title": "..." }` y devuelve `{ "subtasks": ["...", "...", "...", "..."] }`. Para habilitarlo, configura `AI_API_KEY` y `AI_MODEL` en `.env`; `AI_BASE_URL` es opcional y acepta la URL raíz de una API compatible (por defecto usa `https://api.openai.com/v1`). Sin clave y modelo configurados, el endpoint responde `503 AI_NOT_CONFIGURED`. No se incluye ninguna credencial.
+## Publicar en Vercel
 
-Para detener PostgreSQL: `docker compose down`. Para detenerlo y borrar sus datos locales: `docker compose down -v`.
+Pulsa **Desplegar en Vercel**, inicia sesión y autoriza GitHub si te lo solicita. Vercel detecta Next.js y entrega una dirección pública `*.vercel.app`.
+
+Conecta una base de datos PostgreSQL (por ejemplo, Neon) y agrega sus URLs como `DATABASE_URL` y `DIRECT_URL` en las variables de entorno de Vercel. Crea otra GitHub OAuth App con el dominio Vercel de producción como Homepage URL y `https://TU-DOMINIO-VERCEL/api/auth/callback/github` como callback. Configura también:
+
+- `AUTH_SECRET`: secreto aleatorio largo, distinto de cualquier credencial.
+- `AUTH_GITHUB_ID` y `AUTH_GITHUB_SECRET`: credenciales de la GitHub OAuth App de producción.
+- `GITHUB_ALLOWED_LOGIN`: usuario autorizado; por defecto `lkjuan44-bit`.
+- `AI_API_KEY` y `AI_MODEL`: opcionales, para activar el desglose de tareas con IA.
+- `AI_BASE_URL`: opcional; por defecto `https://api.openai.com/v1`.
+
+No publiques credenciales ni las añadas al repositorio. Tras configurar la base de datos, ejecuta `npm run db:push` contra ella para crear las tablas. Si Vercel importó el proyecto como una copia Git, conecta esa copia en Settings > Git o importa el repositorio fuente `lkjuan44-bit/academic-dev-dashboard` para que los cambios nuevos también se desplieguen.
+
+## Qué se puede editar
+
+En el panel puedes crear, editar y eliminar cursos, cortes y notas, horarios semanales y tareas. Los cambios se guardan en PostgreSQL y cada registro queda asociado a la cuenta autenticada.
+
+`POST /api/ai/breakdown` recibe `{ "title": "..." }` y devuelve cuatro subtareas en JSON. Requiere sesión y, para llamar al proveedor, `AI_API_KEY` y `AI_MODEL`; si estas variables no están configuradas, responde `503 AI_NOT_CONFIGURED`.
 
 ## Comprobaciones
 

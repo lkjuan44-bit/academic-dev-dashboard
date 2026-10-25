@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { afterEach, mock, test } from "node:test";
-import { POST } from "./route";
+import { handleBreakdown } from "@/lib/ai/breakdown";
+
+const authenticatedSession = async () => ({ user: { id: "test-user" } });
 
 const originalApiKey = process.env.AI_API_KEY;
 const originalModel = process.env.AI_MODEL;
@@ -29,21 +31,23 @@ afterEach(() => {
 });
 
 test("returns a client error for malformed JSON and an empty title", async () => {
-  const invalidJson = await POST(
+  const invalidJson = await handleBreakdown(
     new Request("http://localhost/api/ai/breakdown", {
       method: "POST",
       body: "{",
     }),
+    authenticatedSession,
   );
   assert.equal(invalidJson.status, 400);
   assert.equal((await invalidJson.json()).error.code, "INVALID_JSON");
 
-  const emptyTitle = await POST(
+  const emptyTitle = await handleBreakdown(
     new Request("http://localhost/api/ai/breakdown", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title: "  " }),
     }),
+    authenticatedSession,
   );
   assert.equal(emptyTitle.status, 400);
   assert.equal((await emptyTitle.json()).error.code, "INVALID_TITLE");
@@ -53,12 +57,13 @@ test("returns an explicit service error if the provider is not configured", asyn
   delete process.env.AI_API_KEY;
   delete process.env.AI_MODEL;
 
-  const response = await POST(
+  const response = await handleBreakdown(
     new Request("http://localhost/api/ai/breakdown", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title: "Preparar el informe" }),
     }),
+    authenticatedSession,
   );
 
   assert.equal(response.status, 503);
@@ -90,12 +95,13 @@ test("returns exactly four subtasks from the configured compatible provider", as
       ),
   );
 
-  const response = await POST(
+  const response = await handleBreakdown(
     new Request("http://localhost/api/ai/breakdown", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title: "Preparar el informe" }),
     }),
+    authenticatedSession,
   );
 
   assert.equal(response.status, 200);
@@ -104,6 +110,20 @@ test("returns exactly four subtasks from the configured compatible provider", as
     fetchMock.mock.calls[0]?.arguments[0],
     "https://provider.example/v1/chat/completions",
   );
+});
+
+test("rejects requests without an authenticated user", async () => {
+  const response = await handleBreakdown(
+    new Request("http://localhost/api/ai/breakdown", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: "Preparar el informe" }),
+    }),
+    async () => null,
+  );
+
+  assert.equal(response.status, 401);
+  assert.equal((await response.json()).error.code, "UNAUTHORIZED");
 });
 
 test("rejects a provider response without four valid subtasks", async () => {
@@ -123,12 +143,13 @@ test("rejects a provider response without four valid subtasks", async () => {
       ),
   );
 
-  const response = await POST(
+  const response = await handleBreakdown(
     new Request("http://localhost/api/ai/breakdown", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title: "Preparar el informe" }),
     }),
+    authenticatedSession,
   );
 
   assert.equal(response.status, 502);
