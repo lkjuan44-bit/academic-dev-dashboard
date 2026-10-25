@@ -2,6 +2,14 @@
 
 Dashboard personal con Next.js App Router, TypeScript, Tailwind CSS, Prisma y PostgreSQL. La pantalla inicial incluye datos de ejemplo para mostrar el horario y las tarjetas de notas. El esquema Prisma y el endpoint de IA están preparados para conectarse a servicios configurados.
 
+[![Desplegar en Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Flkjuan44-bit%2Facademic-dev-dashboard)
+
+## Publicar en Vercel
+
+Pulsa el botón **Desplegar en Vercel**, inicia sesión y autoriza la conexión con GitHub si te la solicita. Vercel detecta Next.js y configura el build automáticamente; al pulsar **Deploy** te dará una URL pública `*.vercel.app`.
+
+La pantalla inicial usa datos de ejemplo y no necesita base de datos para mostrarse. El endpoint de desglose devuelve `503 AI_NOT_CONFIGURED` hasta que agregues `AI_API_KEY` y `AI_MODEL` en las variables de entorno del proyecto en Vercel. Si más adelante conectas la base PostgreSQL, agrega allí también `DATABASE_URL`.
+
 ## Requisitos
 
 - Node.js 20.9 o superior y npm
